@@ -1,1 +1,4 @@
 project_id = "swnqyqvwmlzezxufejwh"
+
+[functions.sketches]
+verify_jwt = false
