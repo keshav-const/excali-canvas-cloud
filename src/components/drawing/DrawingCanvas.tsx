@@ -18,10 +18,14 @@ export const DrawingCanvas = () => {
       backgroundColor: "#ffffff",
     });
 
-    // Initialize the freeDrawingBrush
-    canvas.freeDrawingBrush.color = activeColor;
-    canvas.freeDrawingBrush.width = strokeWidth;
+    // Enable drawing mode first
     canvas.isDrawingMode = true;
+
+    // Then initialize the brush properties (now available)
+    if (canvas.freeDrawingBrush) {
+      canvas.freeDrawingBrush.color = activeColor;
+      canvas.freeDrawingBrush.width = strokeWidth;
+    }
 
     setFabricCanvas(canvas);
     toast("Canvas ready! Start drawing!");
@@ -33,6 +37,11 @@ export const DrawingCanvas = () => {
 
   useEffect(() => {
     if (!fabricCanvas) return;
+
+    // Ensure drawing mode is enabled and brush exists
+    if (!fabricCanvas.isDrawingMode) {
+      fabricCanvas.isDrawingMode = true;
+    }
 
     if (fabricCanvas.freeDrawingBrush) {
       fabricCanvas.freeDrawingBrush.color = activeColor;
