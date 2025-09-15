@@ -89,7 +89,7 @@ const Index = () => {
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button size="lg" className="text-lg px-8 py-6" asChild>
-              <Link to="/auth">Start Drawing</Link>
+              <Link to="/canvas">Start Drawing</Link>
             </Button>
             <Button size="lg" variant="outline" className="text-lg px-8 py-6">
               Learn More
