@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Palette } from 'lucide-react';
+import { DrawingCanvas } from '@/components/drawing/DrawingCanvas';
 
 const Canvas = () => {
   const { user } = useAuth();
@@ -33,19 +34,8 @@ const Canvas = () => {
 
       {/* Canvas Area */}
       <main className="flex-1 p-8">
-        <div className="max-w-6xl mx-auto">
-          <div className="bg-card rounded-lg border-2 border-dashed border-muted h-96 flex items-center justify-center">
-            <div className="text-center">
-              <Palette className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-              <h2 className="text-2xl font-semibold mb-2">Canvas Coming Soon</h2>
-              <p className="text-muted-foreground mb-4">
-                This is where the drawing canvas will be implemented.
-              </p>
-              <div className="text-sm text-muted-foreground">
-                Features to add: Drawing tools, layers, save/load, export
-              </div>
-            </div>
-          </div>
+        <div className="max-w-7xl mx-auto">
+          <DrawingCanvas />
         </div>
       </main>
     </div>
