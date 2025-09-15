@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState } from "react";
-import { Canvas as FabricCanvas } from "fabric";
+import { Canvas as FabricCanvas, PencilBrush } from "fabric";
 import { toast } from "sonner";
 import { DrawingToolbar } from "./DrawingToolbar";
 
 export const DrawingCanvas = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   const [fabricCanvas, setFabricCanvas] = useState<FabricCanvas | null>(null);
   const [activeColor, setActiveColor] = useState("#000000");
   const [strokeWidth, setStrokeWidth] = useState(2);
@@ -21,11 +22,10 @@ export const DrawingCanvas = () => {
     // Enable drawing mode first
     canvas.isDrawingMode = true;
 
-    // Then initialize the brush properties (now available)
-    if (canvas.freeDrawingBrush) {
-      canvas.freeDrawingBrush.color = activeColor;
-      canvas.freeDrawingBrush.width = strokeWidth;
-    }
+    // Initialize the pencil brush
+    canvas.freeDrawingBrush = new PencilBrush(canvas);
+    canvas.freeDrawingBrush.color = activeColor;
+    canvas.freeDrawingBrush.width = strokeWidth;
 
     setFabricCanvas(canvas);
     toast("Canvas ready! Start drawing!");
@@ -35,6 +35,26 @@ export const DrawingCanvas = () => {
     };
   }, []);
 
+  // Responsive sizing
+  useEffect(() => {
+    if (!fabricCanvas) return;
+
+    const resize = () => {
+      const wrapper = containerRef.current;
+      if (!wrapper) return;
+      const width = wrapper.clientWidth;
+      const top = wrapper.getBoundingClientRect().top;
+      const height = Math.max(400, Math.floor(window.innerHeight - top - 24));
+      fabricCanvas.setWidth(width);
+      fabricCanvas.setHeight(height);
+      fabricCanvas.renderAll();
+    };
+
+    resize();
+    window.addEventListener("resize", resize);
+    return () => window.removeEventListener("resize", resize);
+  }, [fabricCanvas]);
+
   useEffect(() => {
     if (!fabricCanvas) return;
 
@@ -43,10 +63,11 @@ export const DrawingCanvas = () => {
       fabricCanvas.isDrawingMode = true;
     }
 
-    if (fabricCanvas.freeDrawingBrush) {
-      fabricCanvas.freeDrawingBrush.color = activeColor;
-      fabricCanvas.freeDrawingBrush.width = strokeWidth;
+    if (!fabricCanvas.freeDrawingBrush) {
+      fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
     }
+    fabricCanvas.freeDrawingBrush.color = activeColor;
+    fabricCanvas.freeDrawingBrush.width = strokeWidth;
   }, [activeColor, strokeWidth, fabricCanvas]);
 
   const handleClear = () => {
@@ -86,8 +107,8 @@ export const DrawingCanvas = () => {
         onClear={handleClear}
         onExport={handleExport}
       />
-      <div className="border-2 border-border rounded-lg shadow-lg overflow-hidden bg-background">
-        <canvas ref={canvasRef} className="max-w-full" />
+      <div ref={containerRef} className="border-2 border-border rounded-lg shadow-lg overflow-hidden bg-background">
+        <canvas ref={canvasRef} className="w-full h-auto block touch-none" />
       </div>
     </div>
   );
