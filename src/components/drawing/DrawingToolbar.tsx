@@ -12,10 +12,11 @@ import {
   Type, 
   Undo, 
   Redo,
-  Trash2
+  Trash2,
+  MousePointer2
 } from "lucide-react";
 
-export type DrawingTool = "pencil" | "rectangle" | "circle" | "line" | "text" | "eraser" | "select";
+export type DrawingTool = "pencil" | "rectangle" | "ellipse" | "line" | "text" | "eraser" | "select";
 
 interface DrawingToolbarProps {
   activeTool: DrawingTool;
@@ -28,8 +29,10 @@ interface DrawingToolbarProps {
   onRedo: () => void;
   onClear: () => void;
   onExport: () => void;
+  onDelete: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  hasSelection: boolean;
 }
 
 const PRESET_COLORS = [
@@ -38,13 +41,20 @@ const PRESET_COLORS = [
   "#800080", "#FFC0CB", "#A52A2A", "#808080"
 ];
 
-const TOOLS = [
-  { id: "pencil" as const, icon: PenTool, label: "Pencil" },
-  { id: "rectangle" as const, icon: Square, label: "Rectangle" },
-  { id: "circle" as const, icon: Circle, label: "Circle" },
-  { id: "line" as const, icon: Minus, label: "Line" },
-  { id: "text" as const, icon: Type, label: "Text" },
-  { id: "eraser" as const, icon: Eraser, label: "Eraser" },
+const DRAWING_TOOLS = [
+  { id: "pencil" as const, icon: PenTool, label: "Pencil (P)", shortcut: "P" },
+  { id: "eraser" as const, icon: Eraser, label: "Eraser (E)", shortcut: "E" },
+];
+
+const SHAPE_TOOLS = [
+  { id: "rectangle" as const, icon: Square, label: "Rectangle (R)", shortcut: "R" },
+  { id: "ellipse" as const, icon: Circle, label: "Ellipse (O)", shortcut: "O" },
+  { id: "line" as const, icon: Minus, label: "Line (L)", shortcut: "L" },
+  { id: "text" as const, icon: Type, label: "Text (T)", shortcut: "T" },
+];
+
+const SELECTION_TOOLS = [
+  { id: "select" as const, icon: MousePointer2, label: "Select (V)", shortcut: "V" },
 ];
 
 export const DrawingToolbar = ({
@@ -58,169 +68,257 @@ export const DrawingToolbar = ({
   onRedo,
   onClear,
   onExport,
+  onDelete,
   canUndo,
   canRedo,
+  hasSelection,
 }: DrawingToolbarProps) => {
   return (
     <TooltipProvider>
-      <div className="bg-gray-900 border border-gray-700 rounded-lg p-4 shadow-lg">
-        <div className="flex flex-wrap items-center gap-6">
-          {/* Drawing Tools */}
-          <div className="flex items-center gap-2">
-            {TOOLS.map((tool) => {
-              const Icon = tool.icon;
-              return (
-                <Tooltip key={tool.id}>
-                  <TooltipTrigger asChild>
-                    <Button
-                      variant={activeTool === tool.id ? "default" : "ghost"}
-                      size="icon"
-                      onClick={() => onToolChange(tool.id)}
-                      className={`h-10 w-10 ${
-                        activeTool === tool.id 
-                          ? "bg-blue-600 hover:bg-blue-700" 
-                          : "text-gray-300 hover:text-white hover:bg-gray-700"
-                      }`}
-                    >
-                      <Icon className="h-5 w-5" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{tool.label}</p>
-                  </TooltipContent>
-                </Tooltip>
-              );
-            })}
-          </div>
+      <div className="bg-gray-900 border border-gray-700 rounded-lg p-3 shadow-2xl min-w-[80px] max-w-[80px] flex flex-col gap-4">
+        {/* Drawing Tools */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">Draw</div>
+          {DRAWING_TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <Tooltip key={tool.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onToolChange(tool.id)}
+                    className={`h-12 w-12 rounded-lg transition-all ${
+                      activeTool === tool.id 
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/30" 
+                        : "text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{tool.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
 
-          {/* Separator */}
-          <div className="h-8 w-px bg-gray-600" />
+        {/* Shape Tools */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">Shapes</div>
+          {SHAPE_TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <Tooltip key={tool.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onToolChange(tool.id)}
+                    className={`h-12 w-12 rounded-lg transition-all ${
+                      activeTool === tool.id 
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/30" 
+                        : "text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{tool.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+        </div>
 
-          {/* Undo/Redo */}
-          <div className="flex items-center gap-2">
+        {/* Selection Tools */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">Select</div>
+          {SELECTION_TOOLS.map((tool) => {
+            const Icon = tool.icon;
+            return (
+              <Tooltip key={tool.id}>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => onToolChange(tool.id)}
+                    className={`h-12 w-12 rounded-lg transition-all ${
+                      activeTool === tool.id 
+                        ? "bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-600/30" 
+                        : "text-gray-300 hover:text-white hover:bg-gray-700 border border-gray-600"
+                    }`}
+                  >
+                    <Icon className="h-5 w-5" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{tool.label}</p>
+                </TooltipContent>
+              </Tooltip>
+            );
+          })}
+          
+          {/* Delete Button (only when selection exists) */}
+          {hasSelection && (
             <Tooltip>
               <TooltipTrigger asChild>
                 <Button
                   variant="ghost"
                   size="icon"
-                  onClick={onUndo}
-                  disabled={!canUndo}
-                  className="h-10 w-10 text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30"
+                  onClick={onDelete}
+                  className="h-12 w-12 rounded-lg text-red-400 hover:text-white hover:bg-red-600/20 border border-red-600/30"
                 >
-                  <Undo className="h-5 w-5" />
+                  <Trash2 className="h-5 w-5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent>
-                <p>Undo</p>
+              <TooltipContent side="right">
+                <p>Delete Selected (Del)</p>
               </TooltipContent>
             </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onRedo}
-                  disabled={!canRedo}
-                  className="h-10 w-10 text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30"
-                >
-                  <Redo className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Redo</p>
-              </TooltipContent>
-            </Tooltip>
+          )}
+        </div>
+
+        {/* Separator */}
+        <div className="h-px bg-gray-600 my-2" />
+
+        {/* History Actions */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">History</div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onUndo}
+                disabled={!canUndo}
+                className="h-12 w-12 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30 border border-gray-600"
+              >
+                <Undo className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Undo (Ctrl+Z)</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onRedo}
+                disabled={!canRedo}
+                className="h-12 w-12 rounded-lg text-gray-300 hover:text-white hover:bg-gray-700 disabled:opacity-30 border border-gray-600"
+              >
+                <Redo className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Redo (Ctrl+Y)</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+
+        {/* Separator */}
+        <div className="h-px bg-gray-600 my-2" />
+
+        {/* Color & Settings */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">Color</div>
+          
+          {/* Current Color Display */}
+          <div 
+            className="w-12 h-8 rounded border-2 border-gray-500 mx-auto"
+            style={{ backgroundColor: activeColor }}
+          />
+          
+          {/* Preset Colors */}
+          <div className="grid grid-cols-3 gap-1">
+            {PRESET_COLORS.slice(0, 6).map((color) => (
+              <Tooltip key={color}>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`w-6 h-6 rounded border transition-all ${
+                      activeColor === color 
+                        ? "border-blue-400 ring-1 ring-blue-400/50" 
+                        : "border-gray-500 hover:border-gray-400"
+                    }`}
+                    style={{ backgroundColor: color }}
+                    onClick={() => onColorChange(color)}
+                  />
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  <p>{color}</p>
+                </TooltipContent>
+              </Tooltip>
+            ))}
           </div>
+          
+          <input
+            type="color"
+            value={activeColor}
+            onChange={(e) => onColorChange(e.target.value)}
+            className="w-12 h-8 rounded border border-gray-500 cursor-pointer bg-transparent mx-auto"
+          />
+        </div>
 
-          {/* Separator */}
-          <div className="h-8 w-px bg-gray-600" />
-
-          {/* Color Picker */}
-          <div className="flex items-center gap-3">
-            <Palette className="h-5 w-5 text-gray-300" />
-            <div className="flex gap-1">
-              {PRESET_COLORS.map((color) => (
-                <Tooltip key={color}>
-                  <TooltipTrigger asChild>
-                    <button
-                      className={`w-8 h-8 rounded-full border-2 transition-all ${
-                        activeColor === color 
-                          ? "border-blue-400 ring-2 ring-blue-400/30" 
-                          : "border-gray-500 hover:border-gray-400"
-                      }`}
-                      style={{ backgroundColor: color }}
-                      onClick={() => onColorChange(color)}
-                    />
-                  </TooltipTrigger>
-                  <TooltipContent>
-                    <p>{color}</p>
-                  </TooltipContent>
-                </Tooltip>
-              ))}
-            </div>
-            <input
-              type="color"
-              value={activeColor}
-              onChange={(e) => onColorChange(e.target.value)}
-              className="w-8 h-8 rounded border border-gray-500 cursor-pointer bg-transparent"
-            />
-          </div>
-
-          {/* Separator */}
-          <div className="h-8 w-px bg-gray-600" />
-
-          {/* Stroke Width */}
-          <div className="flex items-center gap-3 min-w-[160px]">
-            <span className="text-sm font-medium text-gray-300">Width:</span>
+        {/* Stroke Width */}
+        <div className="flex flex-col gap-2">
+          <div className="text-xs font-medium text-gray-400 mb-1">Width</div>
+          <div className="px-2">
             <Slider
               value={[strokeWidth]}
               onValueChange={(value) => onStrokeWidthChange(value[0])}
               max={20}
               min={1}
               step={1}
-              className="flex-1"
+              className="w-full"
+              orientation="vertical"
             />
-            <span className="text-sm text-gray-400 w-8">{strokeWidth}px</span>
           </div>
+          <span className="text-xs text-gray-400 text-center">{strokeWidth}px</span>
+        </div>
 
-          {/* Separator */}
-          <div className="h-8 w-px bg-gray-600" />
+        {/* Separator */}
+        <div className="h-px bg-gray-600 my-2" />
 
-          {/* Actions */}
-          <div className="flex items-center gap-2">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onClear}
-                  className="h-10 w-10 text-gray-300 hover:text-white hover:bg-red-600/20"
-                >
-                  <Trash2 className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Clear Canvas</p>
-              </TooltipContent>
-            </Tooltip>
-            
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onExport}
-                  className="h-10 w-10 text-gray-300 hover:text-white hover:bg-green-600/20"
-                >
-                  <Download className="h-5 w-5" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>Export PNG</p>
-              </TooltipContent>
-            </Tooltip>
-          </div>
+        {/* Canvas Actions */}
+        <div className="flex flex-col gap-2">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onExport}
+                className="h-12 w-12 rounded-lg text-green-400 hover:text-white hover:bg-green-600/20 border border-green-600/30"
+              >
+                <Download className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Export PNG</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onClear}
+                className="h-12 w-12 rounded-lg text-red-400 hover:text-white hover:bg-red-600/20 border border-red-600/30"
+              >
+                <Trash2 className="h-5 w-5" />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              <p>Clear Canvas</p>
+            </TooltipContent>
+          </Tooltip>
         </div>
       </div>
     </TooltipProvider>
