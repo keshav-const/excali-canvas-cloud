@@ -46,7 +46,7 @@ export const DrawingCanvas = () => {
   // Drawing state
   const [isDrawing, setIsDrawing] = useState(false);
   const [currentPath, setCurrentPath] = useState<number[]>([]);
-  const [rasterImageData, setRasterImageData] = useState<Konva.Image | null>(null);
+  const [rasterImage, setRasterImage] = useState<HTMLImageElement | null>(null);
   
   // Undo/Redo system
   const [history, setHistory] = useState<HistoryState[]>([]);
@@ -55,30 +55,13 @@ export const DrawingCanvas = () => {
   // Canvas dimensions
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 700 });
 
-  // Initialize raster canvas for brush/eraser
-  useEffect(() => {
-    const rasterCanvas = document.createElement('canvas');
-    rasterCanvas.width = canvasSize.width;
-    rasterCanvas.height = canvasSize.height;
-    rasterCanvasRef.current = rasterCanvas;
-    
-    // Create initial Konva Image for raster layer
-    const ctx = rasterCanvas.getContext('2d')!;
-    ctx.fillStyle = 'transparent';
-    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
-    
-    updateRasterImage();
-    saveState();
-    
-    toast("Canvas ready! Start drawing!");
-  }, []);
-
   const updateRasterImage = useCallback(() => {
-    if (!rasterCanvasRef.current || !rasterLayerRef.current) return;
+    if (!rasterCanvasRef.current) return;
     
     const rasterCanvas = rasterCanvasRef.current;
     const imageObj = new window.Image();
     imageObj.onload = () => {
+      setRasterImage(imageObj);
       if (rasterImageRef.current) {
         rasterImageRef.current.image(imageObj);
         rasterLayerRef.current?.batchDraw();
@@ -86,6 +69,31 @@ export const DrawingCanvas = () => {
     };
     imageObj.src = rasterCanvas.toDataURL();
   }, []);
+
+  // Initialize raster canvas for brush/eraser
+  useEffect(() => {
+    const rasterCanvas = document.createElement('canvas');
+    rasterCanvas.width = canvasSize.width;
+    rasterCanvas.height = canvasSize.height;
+    rasterCanvasRef.current = rasterCanvas;
+    
+    // Create initial Konva Image for raster layer with white background
+    const ctx = rasterCanvas.getContext('2d')!;
+    ctx.fillStyle = 'white';
+    ctx.fillRect(0, 0, canvasSize.width, canvasSize.height);
+    
+    updateRasterImage();
+    
+    // Initialize empty state
+    const initialState: HistoryState = {
+      objects: [],
+      rasterData: rasterCanvas.toDataURL()
+    };
+    setHistory([initialState]);
+    setHistoryIndex(0);
+    
+    toast("Canvas ready! Start drawing!");
+  }, [canvasSize.width, canvasSize.height, updateRasterImage]);
 
   // Responsive sizing
   useEffect(() => {
@@ -458,7 +466,7 @@ export const DrawingCanvas = () => {
           <Layer ref={rasterLayerRef}>
             <Image
               ref={rasterImageRef}
-              image={rasterImageData?.image()}
+              image={rasterImage}
               x={0}
               y={0}
             />
