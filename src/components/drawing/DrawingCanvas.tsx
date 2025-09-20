@@ -3,6 +3,7 @@ import { Stage, Layer, Line, Rect, Ellipse, Text, Transformer, Image } from "rea
 import Konva from "konva";
 import { toast } from "sonner";
 import { DrawingToolbar, DrawingTool } from "./DrawingToolbar";
+import TopBar from "./TopBar";
 
 // Types for canvas objects
 interface CanvasObject {
@@ -54,6 +55,34 @@ export const DrawingCanvas = () => {
   
   // Canvas dimensions
   const [canvasSize, setCanvasSize] = useState({ width: 1200, height: 700 });
+  
+  // Text editing state
+  const [editingTextId, setEditingTextId] = useState<string | null>(null);
+  const [textValue, setTextValue] = useState("");
+
+  // Get selected element for property editing
+  const selectedElement = canvasObjects.find(obj => selectedIds.includes(obj.id)) || null;
+
+  // Handle property changes for selected elements
+  const handleStrokeColorChange = useCallback((color: string) => {
+    if (selectedIds.length === 0) return;
+    setCanvasObjects(prev => prev.map(obj => 
+      selectedIds.includes(obj.id) 
+        ? { ...obj, strokeColor: color }
+        : obj
+    ));
+    setTimeout(saveState, 10);
+  }, [selectedIds]);
+
+  const handleStrokeWidthChange = useCallback((width: number) => {
+    if (selectedIds.length === 0) return;
+    setCanvasObjects(prev => prev.map(obj => 
+      selectedIds.includes(obj.id) 
+        ? { ...obj, strokeWidth: width }
+        : obj
+    ));
+    setTimeout(saveState, 10);
+  }, [selectedIds]);
 
   const updateRasterImage = useCallback(() => {
     if (!rasterCanvasRef.current) return;
@@ -216,23 +245,22 @@ export const DrawingCanvas = () => {
       setCurrentPath([pos.x, pos.y]);
     } else if (activeTool === 'text') {
       const pos = e.target.getStage().getPointerPosition();
-      const text = prompt('Enter text:');
-      if (text) {
-        const newText: CanvasObject = {
-          id: generateId(),
-          type: 'text',
-          x: pos.x,
-          y: pos.y,
-          text: text,
-          fontSize: 20,
-          rotation: 0,
-          strokeColor: activeColor,
-          strokeWidth: 0,
-          fill: activeColor
-        };
-        setCanvasObjects(prev => [...prev, newText]);
-        setTimeout(saveState, 10);
-      }
+      const newText: CanvasObject = {
+        id: generateId(),
+        type: 'text',
+        x: pos.x,
+        y: pos.y,
+        text: 'Double-click to edit',
+        fontSize: 24,
+        rotation: 0,
+        strokeColor: activeColor,
+        strokeWidth: strokeWidth,
+      };
+      setCanvasObjects(prev => [...prev, newText]);
+      setSelectedIds([newText.id]);
+      setEditingTextId(newText.id);
+      setTextValue('Double-click to edit');
+      setTimeout(saveState, 10);
     } else {
       // Shape tools
       setIsDrawing(true);
@@ -435,14 +463,24 @@ export const DrawingCanvas = () => {
   };
 
   return (
-    <div className="flex gap-4 h-full">
-      <DrawingToolbar
+    <div className="relative w-full h-full">
+      {/* TopBar for selected element properties */}
+      <TopBar 
+        selectedElement={selectedElement ? {
+          id: selectedElement.id,
+          strokeColor: selectedElement.strokeColor,
+          strokeWidth: selectedElement.strokeWidth,
+          type: selectedElement.type
+        } : null}
+        zoom={1}
+        onStrokeColorChange={handleStrokeColorChange}
+        onStrokeWidthChange={handleStrokeWidthChange}
+      />
+      
+      <div className="flex gap-4 h-full">
+        <DrawingToolbar
         activeTool={activeTool}
         onToolChange={setActiveTool}
-        activeColor={activeColor}
-        onColorChange={setActiveColor}
-        strokeWidth={strokeWidth}
-        onStrokeWidthChange={setStrokeWidth}
         onUndo={handleUndo}
         onRedo={handleRedo}
         onClear={handleClear}
@@ -582,6 +620,7 @@ export const DrawingCanvas = () => {
                 return (
                   <Text
                     key={obj.id}
+                    id={obj.id}
                     x={obj.x}
                     y={obj.y}
                     text={obj.text || ''}
@@ -606,10 +645,8 @@ export const DrawingCanvas = () => {
                       });
                     }}
                     onDblClick={() => {
-                      const newText = prompt('Edit text:', obj.text);
-                      if (newText !== null) {
-                        handleObjectTransform(obj.id, { text: newText });
-                      }
+                      setEditingTextId(obj.id);
+                      setTextValue(obj.text || '');
                     }}
                   />
                 );
@@ -635,6 +672,61 @@ export const DrawingCanvas = () => {
           </Layer>
         </Stage>
       </div>
+      
+      {/* Text editing input */}
+      {editingTextId && (
+        <textarea
+          autoFocus
+          value={textValue}
+          onChange={(e) => setTextValue(e.target.value)}
+          onBlur={() => {
+            const editingObj = canvasObjects.find(obj => obj.id === editingTextId);
+            if (editingObj) {
+              setCanvasObjects(prev => prev.map(obj => 
+                obj.id === editingTextId 
+                  ? { ...obj, text: textValue }
+                  : obj
+              ));
+              setTimeout(saveState, 10);
+            }
+            setEditingTextId(null);
+            setTextValue("");
+          }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+              e.preventDefault();
+              const editingObj = canvasObjects.find(obj => obj.id === editingTextId);
+              if (editingObj) {
+                setCanvasObjects(prev => prev.map(obj => 
+                  obj.id === editingTextId 
+                    ? { ...obj, text: textValue }
+                    : obj
+                ));
+                setTimeout(saveState, 10);
+              }
+              setEditingTextId(null);
+              setTextValue("");
+            }
+          }}
+          style={{
+            position: 'absolute',
+            top: (canvasObjects.find(obj => obj.id === editingTextId)?.y || 0) + 50,
+            left: (canvasObjects.find(obj => obj.id === editingTextId)?.x || 0) + 100,
+            fontSize: '24px',
+            fontFamily: 'Arial, sans-serif',
+            background: 'transparent',
+            border: '2px solid #3b82f6',
+            borderRadius: '4px',
+            padding: '4px 8px',
+            color: canvasObjects.find(obj => obj.id === editingTextId)?.strokeColor || '#000000',
+            outline: 'none',
+            resize: 'none',
+            overflow: 'hidden',
+            zIndex: 1000,
+          }}
+        />
+      )}
+    </div>
     </div>
   );
 };
